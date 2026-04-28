@@ -1,14 +1,13 @@
 import type { AWS } from '@serverless/typescript'
 
 import create from '@functions/create'
+import confirm from '@functions/confirm'
 import update from '@functions/update'
 import signup from '@functions/signup'
 import login from '@functions/login'
 import verify from '@functions/verify'
 import auth from '@functions/auth'
 import list from '@functions/list'
-import test from '@functions/test'
-import test2 from '@functions/test2'
 
 const serverlessConfiguration: AWS = {
   service: 'jcc-dmc-backend',
@@ -43,7 +42,7 @@ const serverlessConfiguration: AWS = {
       subnetIds: ['${env:VPC_SUBNET_ID_1, ""}', '${env:VPC_SUBNET_ID_2, ""}'] as unknown as string[],
     },
   },
-  functions: { create, update, signup, login, verify, auth, list, test, test2 },
+  functions: { create, confirm, update, signup, login, verify, auth, list },
 }
 
 module.exports = serverlessConfiguration

@@ -8,6 +8,7 @@ export default {
       http: {
         method: 'patch',
         path: 'payment/{orderId}',
+        authorizer: 'auth',
         cors: true,
         request: {
           schemas: {
