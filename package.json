@@ -1,0 +1,47 @@
+{
+  "name": "jcc-dmc-backend",
+  "version": "1.0.0",
+  "description": "JCC DMC Backend - AWS Serverless TypeScript with RDS MySQL",
+  "main": "serverless.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "offline": "npx sls offline --noPrependStageInUrl",
+    "deploy": "npx sls deploy --aws-profile serverless-deployer",
+    "remove": "npx sls remove --aws-profile serverless-deployer",
+    "lint": "eslint src serverless.ts",
+    "lint:fix": "eslint src serverless.ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" serverless.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@middy/core": "^4.7.0",
+    "@middy/http-json-body-parser": "^4.7.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "@serverless/typescript": "^3.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0",
+    "typescript-eslint": "^8.0.0",
+    "@types/aws-lambda": "^8.10.146",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.14.0",
+    "json-schema-to-ts": "^3.1.1",
+    "serverless": "^3.38.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-esbuild": "^1.52.1",
+    "serverless-offline": "^13.9.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.5.4"
+  },
+  "author": "",
+  "license": "MIT"
+}
