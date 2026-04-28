@@ -13,7 +13,7 @@ const signup: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, 
     const { userId, password } = event.body
 
     const pool = getPool()
-    const [rows] = await pool.execute<RowDataPacket[]>('SELECT userId FROM member WHERE userId = ?', [userId])
+    const [rows] = await pool.execute<RowDataPacket[]>('SELECT userid FROM member WHERE userid = ?', [userId])
 
     if (rows.length > 0) {
       return formatJSONResponse({
@@ -23,7 +23,7 @@ const signup: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, 
     }
 
     const hash = await hashPassword(password)
-    await pool.execute('INSERT INTO member (userId, password) VALUES (?, ?)', [userId, hash])
+    await pool.execute('INSERT INTO member (userid, password) VALUES (?, ?)', [userId, hash])
 
     return formatJSONResponse({ message: 'ok' })
   } catch (err) {

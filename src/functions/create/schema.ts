@@ -1,6 +1,7 @@
 export default {
   type: 'object',
   properties: {
+    pay_type: { type: 'string', enum: ['card', 'mobile'] },
     name: { type: 'string' },
     jumin1: { type: 'string' },
     jumin2: { type: 'string' },
@@ -11,7 +12,7 @@ export default {
     price4: { type: 'number' },
     price5: { type: 'number' },
     contents: { type: 'string' },
-    orderId: { type: 'string' },
+    order_id: { type: 'string' },
   },
-  required: ['name', 'orderId'],
+  required: ['pay_type', 'name', 'order_id'],
 } as const

@@ -17,7 +17,7 @@ const login: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, c
     const { userId, password } = event.body
 
     const pool = getPool()
-    const [rows] = await pool.execute<RowDataPacket[]>('SELECT userId, password FROM member WHERE userId = ?', [userId])
+    const [rows] = await pool.execute<RowDataPacket[]>('SELECT userid, password FROM member WHERE userid = ?', [userId])
 
     if (rows.length === 0) {
       return formatJSONResponse({ statusCode: 400, message: 'user not found' })

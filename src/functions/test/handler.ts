@@ -11,7 +11,7 @@ const test: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     if (!id) return formatJSONResponse({ statusCode: 400, message: 'id is required' })
 
     const pool = getPool()
-    const [rows] = await pool.execute<RowDataPacket[]>('SELECT * FROM intCard WHERE num = ?', [id])
+    const [rows] = await pool.execute<RowDataPacket[]>('SELECT * FROM payment WHERE num = ?', [id])
 
     return formatJSONResponse({ message: rows })
   } catch (err) {

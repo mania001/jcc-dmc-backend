@@ -8,12 +8,14 @@ import schema from './schema'
 const create: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false
   try {
-    const { name, jumin1, jumin2, email, price1, price2, price3, price4, price5, contents, orderId } = event.body
+    const { pay_type, name, jumin1, jumin2, email, price1, price2, price3, price4, price5, contents, order_id } =
+      event.body
 
     const pool = getPool()
     await pool.execute(
-      'INSERT INTO intCard (name, jumin1, jumin2, email, price1, price2, price3, price4, price5, contents, seqcardnum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO payment (pay_type, name, jumin1, jumin2, email, price1, price2, price3, price4, price5, contents, order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
+        pay_type,
         name,
         jumin1 ?? null,
         jumin2 ?? null,
@@ -24,7 +26,7 @@ const create: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, 
         price4 ?? null,
         price5 ?? null,
         contents ?? null,
-        orderId,
+        order_id,
       ]
     )
 

@@ -49,11 +49,11 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
 
     const pool = getPool()
 
-    const [sumResult] = await pool.execute<RowDataPacket[]>(
+    const [sumResult] = await pool.query<RowDataPacket[]>(
       `SELECT
-         SUM(price1) + SUM(price2) + SUM(price3) + SUM(price4) + SUM(IFNULL(price5, 0)) AS totalPay,
+         SUM(IFNULL(price1,0)) + SUM(IFNULL(price2,0)) + SUM(IFNULL(price3,0)) + SUM(IFNULL(price4,0)) + SUM(IFNULL(price5,0)) AS totalPay,
          COUNT(*) AS cnt
-       FROM intCard ${whereClause}`,
+       FROM payment ${whereClause}`,
       whereParams
     )
     const { totalPay, cnt } = sumResult[0]
@@ -61,9 +61,9 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const pageNum = Number(page)
     const sizeNum = Number(size)
 
-    let dataQuery = `SELECT *, price1 + price2 + price3 + price4 + IFNULL(price5, 0) AS total
-                     FROM intCard ${whereClause}
-                     ORDER BY NUM DESC`
+    let dataQuery = `SELECT *, IFNULL(price1,0) + IFNULL(price2,0) + IFNULL(price3,0) + IFNULL(price4,0) + IFNULL(price5,0) AS total
+                     FROM payment ${whereClause}
+                     ORDER BY num DESC`
 
     const dataParams: (string | number)[] = [...whereParams]
 
@@ -72,9 +72,9 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
       dataParams.push(sizeNum, (pageNum - 1) * sizeNum)
     }
 
-    const [results] = await pool.execute<RowDataPacket[]>(dataQuery, dataParams)
+    const [results] = await pool.query<RowDataPacket[]>(dataQuery, dataParams)
 
-    const currentPagePay = results.reduce((acc, cur) => acc + (cur.total ?? 0), 0)
+    const currentPagePay = results.reduce((acc, cur) => acc + Number(cur.total ?? 0), 0)
 
     return formatJSONResponse({
       message: {
