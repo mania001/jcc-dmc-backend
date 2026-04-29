@@ -1,8 +1,7 @@
 export default {
   type: 'object',
   properties: {
-    result: { type: 'boolean' },
-    payment_key: { type: 'string' },
+    status: { type: 'string', enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'] },
   },
-  required: ['payment_key'],
+  required: ['status'],
 } as const

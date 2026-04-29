@@ -2,12 +2,19 @@ import type { AWS } from '@serverless/typescript'
 
 import create from '@functions/create'
 import confirm from '@functions/confirm'
+import dbUpdate from '@functions/db-update'
+import status from '@functions/status'
 import update from '@functions/update'
 import signup from '@functions/signup'
 import login from '@functions/login'
 import verify from '@functions/verify'
 import auth from '@functions/auth'
 import list from '@functions/list'
+
+const vpcConfig = {
+  securityGroupIds: ['${env:VPC_SECURITY_GROUP_ID, ""}'] as unknown as string[],
+  subnetIds: ['${env:VPC_SUBNET_ID_1, ""}', '${env:VPC_SUBNET_ID_2, ""}'] as unknown as string[],
+}
 
 const serverlessConfiguration: AWS = {
   service: 'jcc-dmc-backend',
@@ -36,13 +43,50 @@ const serverlessConfiguration: AWS = {
     environment: {
       NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
     },
-    // VPC 설정: .env의 값으로 주입됨. sls offline 로컬 개발 시에는 불필요
-    vpc: {
-      securityGroupIds: ['${env:VPC_SECURITY_GROUP_ID, ""}'] as unknown as string[],
-      subnetIds: ['${env:VPC_SUBNET_ID_1, ""}', '${env:VPC_SUBNET_ID_2, ""}'] as unknown as string[],
+    iam: {
+      role: {
+        statements: [
+          {
+            Effect: 'Allow',
+            Action: ['sqs:SendMessage'],
+            Resource: [{ 'Fn::GetAtt': ['OfferingUpdateQueue', 'Arn'] }] as unknown as string[],
+          },
+        ],
+      },
     },
   },
-  functions: { create, confirm, update, signup, login, verify, auth, list },
+  functions: {
+    // DB 접근 Lambda (VPC 내부)
+    create: { ...create, vpc: vpcConfig },
+    dbUpdate: { ...dbUpdate, vpc: vpcConfig },
+    status: { ...status, vpc: vpcConfig },
+    update: { ...update, vpc: vpcConfig },
+    signup: { ...signup, vpc: vpcConfig },
+    login: { ...login, vpc: vpcConfig },
+    verify: { ...verify, vpc: vpcConfig },
+    auth: { ...auth, vpc: vpcConfig },
+    list: { ...list, vpc: vpcConfig },
+    // 인터넷 접근 필요 Lambda (VPC 없음)
+    confirm,
+  },
+  resources: {
+    Resources: {
+      OfferingUpdateQueue: {
+        Type: 'AWS::SQS::Queue',
+        Properties: {
+          QueueName: 'jcc-dmc-offering-update-queue',
+          VisibilityTimeout: 60,
+          MessageRetentionPeriod: 86400,
+        },
+      },
+    },
+    Outputs: {
+      OfferingUpdateQueueUrl: {
+        Value: { Ref: 'OfferingUpdateQueue' },
+        Export: { Name: 'jcc-dmc-offering-update-queue-url' },
+      },
+    },
+  },
 }
 
 module.exports = serverlessConfiguration

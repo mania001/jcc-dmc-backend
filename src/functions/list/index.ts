@@ -6,7 +6,7 @@ export default {
     {
       http: {
         method: 'get',
-        path: 'payments',
+        path: 'offerings',
         authorizer: 'auth',
         cors: true,
       },

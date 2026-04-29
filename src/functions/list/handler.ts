@@ -21,7 +21,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const targetYear = year ?? (today.getMonth() > 5 ? String(today.getFullYear()) : String(today.getFullYear() - 1))
 
     const whereParams: (string | number)[] = [targetYear]
-    let whereClause = "WHERE result = 'T' AND YEAR(reg_date) = ?"
+    let whereClause = "WHERE status = 'COMPLETED' AND YEAR(created_at) = ?"
 
     if (name) {
       whereClause += ' AND name LIKE ?'
@@ -29,16 +29,14 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     }
 
     if (ssn) {
-      const targetSsn = ssn.replace(/-/g, '').replace(/ /g, '')
-      if (targetSsn.length <= 6) {
-        whereClause += ' AND (jumin1 LIKE ? OR jumin2 LIKE ?)'
-        whereParams.push(`%${targetSsn}%`, `%${targetSsn}%`)
-      } else if (targetSsn.length === 7) {
-        whereClause += ' AND ((jumin1 = ? AND jumin2 LIKE ?) OR jumin2 = ?)'
-        whereParams.push(targetSsn.substring(0, 6), `${targetSsn.substring(6, 7)}%`, targetSsn)
+      const digits = ssn.replace(/[-\s]/g, '')
+      const jumin1Part = digits.substring(0, 6)
+      if (jumin1Part.length < 6) {
+        whereClause += ' AND jumin1 LIKE ?'
+        whereParams.push(`${jumin1Part}%`)
       } else {
-        whereClause += ' AND (jumin1 = ? AND jumin2 LIKE ?)'
-        whereParams.push(targetSsn.substring(0, 6), `${targetSsn.substring(6)}%`)
+        whereClause += ' AND jumin1 = ?'
+        whereParams.push(jumin1Part)
       }
     }
 
@@ -50,10 +48,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const pool = getPool()
 
     const [sumResult] = await pool.query<RowDataPacket[]>(
-      `SELECT
-         SUM(IFNULL(price1,0)) + SUM(IFNULL(price2,0)) + SUM(IFNULL(price3,0)) + SUM(IFNULL(price4,0)) + SUM(IFNULL(price5,0)) AS totalPay,
-         COUNT(*) AS cnt
-       FROM payment ${whereClause}`,
+      `SELECT SUM(amount) AS totalPay, COUNT(*) AS cnt FROM offerings ${whereClause}`,
       whereParams
     )
     const { totalPay, cnt } = sumResult[0]
@@ -61,9 +56,9 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const pageNum = Number(page)
     const sizeNum = Number(size)
 
-    let dataQuery = `SELECT *, IFNULL(price1,0) + IFNULL(price2,0) + IFNULL(price3,0) + IFNULL(price4,0) + IFNULL(price5,0) AS total
-                     FROM payment ${whereClause}
-                     ORDER BY num DESC`
+    let dataQuery = `SELECT id, name, jumin1, email, tithe, thanks, building, mission, relief, amount, pay_type, order_id, status, created_at
+                     FROM offerings ${whereClause}
+                     ORDER BY id DESC`
 
     const dataParams: (string | number)[] = [...whereParams]
 
@@ -74,7 +69,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
 
     const [results] = await pool.query<RowDataPacket[]>(dataQuery, dataParams)
 
-    const currentPagePay = results.reduce((acc, cur) => acc + Number(cur.total ?? 0), 0)
+    const currentPagePay = results.reduce((acc, cur) => acc + Number(cur.amount ?? 0), 0)
 
     return formatJSONResponse({
       message: {

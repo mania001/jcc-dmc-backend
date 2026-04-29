@@ -7,7 +7,7 @@ export default {
     {
       http: {
         method: 'patch',
-        path: 'payment/{orderId}',
+        path: 'offering/{orderId}',
         authorizer: 'auth',
         cors: true,
         request: {

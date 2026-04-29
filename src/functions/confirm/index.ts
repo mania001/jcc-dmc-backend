@@ -7,7 +7,7 @@ export default {
     {
       http: {
         method: 'post',
-        path: 'payment/confirm',
+        path: 'offering/confirm',
         cors: true,
         request: {
           schemas: {

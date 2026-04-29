@@ -1,24 +1,35 @@
+CREATE TABLE IF NOT EXISTS offerings (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(30)  NOT NULL,
+  jumin1      VARCHAR(6)   NOT NULL,
+  jumin2      VARCHAR(255) NOT NULL,
+  email       VARCHAR(80),
+  tithe       DECIMAL(18,0) DEFAULT 0,
+  thanks      DECIMAL(18,0) DEFAULT 0,
+  building    DECIMAL(18,0) DEFAULT 0,
+  mission     DECIMAL(18,0) DEFAULT 0,
+  relief      DECIMAL(18,0) DEFAULT 0,
+  amount      DECIMAL(18,0) NOT NULL,
+  pay_type    ENUM('card','mobile') NOT NULL,
+  order_id    VARCHAR(64)  NOT NULL UNIQUE,
+  status      ENUM('PENDING','PROCESSING','COMPLETED','FAILED') NOT NULL DEFAULT 'PENDING',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS payments (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  order_id     VARCHAR(64)  NOT NULL,
+  payment_key  VARCHAR(200) NOT NULL UNIQUE,
+  method       VARCHAR(20),
+  status       ENUM('READY','DONE','FAILED') NOT NULL,
+  raw_response JSON,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES offerings(order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS member (
   num      INT AUTO_INCREMENT PRIMARY KEY,
   userid   VARCHAR(30)  NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS payment (
-  num         INT AUTO_INCREMENT PRIMARY KEY,
-  pay_type    ENUM('card', 'mobile') NOT NULL,
-  name        VARCHAR(30)   NOT NULL,
-  jumin1      VARCHAR(6),
-  jumin2      VARCHAR(7),
-  email       VARCHAR(80),
-  price1      DECIMAL(18,0),
-  price2      DECIMAL(18,0),
-  price3      DECIMAL(18,0),
-  price4      DECIMAL(18,0),
-  price5      DECIMAL(18,0),
-  contents    TEXT,
-  order_id    VARCHAR(64)   NOT NULL UNIQUE,
-  payment_key VARCHAR(200),
-  result      CHAR(1)       NOT NULL DEFAULT 'F',
-  reg_date    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
