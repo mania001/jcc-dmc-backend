@@ -69,8 +69,7 @@ const serverlessConfiguration: AWS = {
     list: { ...list, vpc: vpcConfig },
     // 인터넷 접근 필요 Lambda (VPC 없음)
     confirm,
-    // Toss webhook (DB 접근 필요, VPC 내부)
-    webhook: { ...webhook, vpc: vpcConfig },
+    webhook,
   },
   resources: {
     Resources: {

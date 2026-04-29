@@ -40,6 +40,7 @@ const confirm: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event,
       new SendMessageCommand({
         QueueUrl: SQS_QUEUE_URL,
         MessageBody: JSON.stringify({
+          type: 'COMPLETE',
           paymentKey,
           orderId,
           amount,

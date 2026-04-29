@@ -1,9 +1,9 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda'
 import { formatJSONResponse } from '@libs/apiGateway'
-import { completeOffering } from '@libs/offeringComplete'
-import { getPool } from '@libs/db'
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 
-const { TOSS_SECRET_KEY } = process.env
+const { TOSS_SECRET_KEY, SQS_QUEUE_URL } = process.env
+const sqs = new SQSClient({ region: 'ap-northeast-2' })
 
 const FAILED_STATUSES = ['CANCELED', 'ABORTED', 'EXPIRED']
 
@@ -35,8 +35,8 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
 
   try {
     if (!TOSS_SECRET_KEY) throw new Error('TOSS_SECRET_KEY is not defined')
+    if (!SQS_QUEUE_URL) throw new Error('SQS_QUEUE_URL is not defined')
 
-    // 1단: timing-safe Basic auth 검증
     const expectedAuth = `Basic ${Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64')}`
     const authHeader = event.headers?.Authorization ?? event.headers?.authorization ?? ''
     if (!verifyAuth(authHeader, expectedAuth)) {
@@ -51,13 +51,11 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
 
     const { paymentKey, orderId, status } = body.data ?? {}
 
-    // 2단: payload 필수값 검증
     if (!paymentKey || !orderId || !status) {
       return formatJSONResponse({ statusCode: 400, message: 'Invalid payload' })
     }
 
     if (status === 'DONE') {
-      // 3단: paymentKey 재조회로 진위 및 상태 검증 (3초 타임아웃)
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 3000)
 
@@ -68,7 +66,6 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
           signal: controller.signal,
         })
 
-        // Toss API 장애 / 네트워크 오류 → 500으로 던져서 Toss가 재시도하게 함
         if (!tossRes.ok) {
           throw new Error(`Toss API error: ${tossRes.status}`)
         }
@@ -78,27 +75,48 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
         clearTimeout(timeout)
       }
 
-      // 실제 데이터 불일치 → 재시도해도 같은 결과, 200으로 종료
       if (payment.status !== 'DONE' || payment.orderId !== orderId) {
         console.warn('Payment mismatch', { webhook: body.data, verified: payment })
         return formatJSONResponse({ message: 'ok' })
       }
 
-      await completeOffering({
-        paymentKey,
-        orderId,
-        method: payment.method ?? null,
-        rawResponse: payment,
-      })
+      try {
+        await sqs.send(
+          new SendMessageCommand({
+            QueueUrl: SQS_QUEUE_URL,
+            MessageBody: JSON.stringify({
+              type: 'COMPLETE',
+              paymentKey,
+              orderId,
+              method: payment.method ?? null,
+              rawResponse: payment,
+            }),
+          })
+        )
+      } catch (e) {
+        // 의도적으로 throw → 500 반환 → Toss 재시도 유도
+        throw e
+      }
     }
 
     if (FAILED_STATUSES.includes(status)) {
       console.info('Payment failed', { orderId, status, createdAt: body.createdAt })
-      const pool = getPool()
-      await pool.execute(
-        `UPDATE offerings SET status = 'FAILED' WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,
-        [orderId]
-      )
+      try {
+        await sqs.send(
+          new SendMessageCommand({
+            QueueUrl: SQS_QUEUE_URL,
+            MessageBody: JSON.stringify({
+              type: 'FAIL',
+              paymentKey,
+              orderId,
+              status,
+            }),
+          })
+        )
+      } catch (e) {
+        // 의도적으로 throw → 500 반환 → Toss 재시도 유도
+        throw e
+      }
     }
 
     return formatJSONResponse({ message: 'ok' })
