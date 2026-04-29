@@ -24,3 +24,11 @@ npm-debug.log*
 .vscode/
 .idea/
 
+# DB dump (개인정보 포함, git 제외)
+sql/*_dump*.sql
+
+# Migration subfolder
+migration/node_modules/
+migration/.env
+migration/*.sql
+
