@@ -10,6 +10,7 @@ import login from '@functions/login'
 import verify from '@functions/verify'
 import auth from '@functions/auth'
 import list from '@functions/list'
+import webhook from '@functions/webhook'
 
 const vpcConfig = {
   securityGroupIds: ['${env:VPC_SECURITY_GROUP_ID, ""}'] as unknown as string[],
@@ -68,6 +69,8 @@ const serverlessConfiguration: AWS = {
     list: { ...list, vpc: vpcConfig },
     // 인터넷 접근 필요 Lambda (VPC 없음)
     confirm,
+    // Toss webhook (DB 접근 필요, VPC 내부)
+    webhook: { ...webhook, vpc: vpcConfig },
   },
   resources: {
     Resources: {
