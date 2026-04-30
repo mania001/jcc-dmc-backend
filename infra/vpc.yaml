@@ -1,0 +1,268 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: jcc VPC infrastructure (VPC, Subnets, IGW, Route Tables, Security Groups)
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+Parameters:
+  Env:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, dev]
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── VPC ───────────────────────────────────────────────────────────────────
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: jcc-custom-vpc
+
+  # ── Internet Gateway ───────────────────────────────────────────────────────
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: jcc-igw
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  # ── Subnets ────────────────────────────────────────────────────────────────
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: ap-northeast-2a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: public-subnet-a
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: ap-northeast-2c
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: public-subnet-b
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: ap-northeast-2a
+      Tags:
+        - Key: Name
+          Value: private-subnet-a
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: ap-northeast-2c
+      Tags:
+        - Key: Name
+          Value: private-subnet-b
+
+  # ── Route Tables ───────────────────────────────────────────────────────────
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: jcc-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+  PublicSubnetARouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: jcc-private-rt
+
+  PrivateSubnetARouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ── Security Groups ────────────────────────────────────────────────────────
+  SGLambda:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: SG-Lambda
+      GroupDescription: Lambda functions (VPC internal)
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          DestinationSecurityGroupId: !Ref SGRDS
+          Description: MySQL to RDS
+      Tags:
+        - Key: Name
+          Value: sg-lambda
+
+  SGRDS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: SG-RDS
+      GroupDescription: RDS MySQL (inbound from Lambda and EC2)
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: sg-rds
+
+  SGRDSIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SGRDS
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref SGLambda
+      Description: from Lambda
+
+  SGRDSIngressFromEC2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SGRDS
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref SGEC2
+      Description: from EC2
+
+  SGEC2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: SG-EC2
+      GroupDescription: EC2 web servers (HTTP/HTTPS inbound, RDS access)
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          DestinationSecurityGroupId: !Ref SGRDS
+          Description: MySQL to RDS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound
+      Tags:
+        - Key: Name
+          Value: sg-ec2
+
+  # ── RDS DB Subnet Group ────────────────────────────────────────────────────
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: jcc-db-subnet-group
+      DBSubnetGroupDescription: Private subnets for RDS (multi-AZ)
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: jcc-db-subnet-group
+
+# ── Outputs ────────────────────────────────────────────────────────────────────
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+    Export:
+      Name: jcc-vpc-id
+
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: jcc-public-subnet-a
+
+  PublicSubnetB:
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: jcc-public-subnet-b
+
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: jcc-private-subnet-a
+
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: jcc-private-subnet-b
+
+  SGLambda:
+    Value: !Ref SGLambda
+    Export:
+      Name: jcc-sg-lambda
+
+  SGRDS:
+    Value: !Ref SGRDS
+    Export:
+      Name: jcc-sg-rds
+
+  SGEC2:
+    Value: !Ref SGEC2
+    Export:
+      Name: jcc-sg-ec2
+
+  DBSubnetGroup:
+    Value: !Ref DBSubnetGroup
+    Export:
+      Name: jcc-db-subnet-group
