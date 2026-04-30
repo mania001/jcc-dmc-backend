@@ -15,6 +15,7 @@ export const getPool = (): mysql.Pool => {
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
+      timezone: '+09:00',
     })
   }
   return pool
