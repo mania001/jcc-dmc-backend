@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: jcc Bastion EC2 (임시 - EC2 이전 완료 후 스택 삭제)
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH 접속에 사용할 키 페어
+    Default: aws-jcc-web
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── Bastion Security Group ─────────────────────────────────────────────────
+  SGBastion:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: SG-Bastion
+      GroupDescription: Bastion EC2 (SSH inbound, RDS tunnel outbound)
+      VpcId: !ImportValue jcc-vpc-id
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH from anywhere (key pair auth)
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          DestinationSecurityGroupId: !ImportValue jcc-sg-rds
+          Description: MySQL tunnel to RDS
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound (yum, ssm)
+      Tags:
+        - Key: Name
+          Value: SG-Bastion
+
+  # SG-RDS에 Bastion 인바운드 허용 (스택 삭제 시 자동 제거)
+  SGRDSIngressFromBastion:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !ImportValue jcc-sg-rds
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref SGBastion
+      Description: from Bastion (temporary)
+
+  # ── Bastion EC2 ────────────────────────────────────────────────────────────
+  BastionEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.nano
+      KeyName: !Ref KeyPairName
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      SubnetId: !ImportValue jcc-public-subnet-a
+      SecurityGroupIds:
+        - !Ref SGBastion
+      Tags:
+        - Key: Name
+          Value: jcc-bastion
+
+# ── Outputs ────────────────────────────────────────────────────────────────────
+Outputs:
+  BastionPublicIP:
+    Value: !GetAtt BastionEC2.PublicIp
+    Description: Bastion 퍼블릭 IP (SSH 접속용)
+
+  SSHTunnelCommand:
+    Value: !Sub
+      - "ssh -i ~/.ssh/${KeyPair}.pem -L 3306:${RDSEndpoint}:3306 ec2-user@${BastionIP} -N"
+      - KeyPair: !Ref KeyPairName
+        RDSEndpoint: "<RDS 엔드포인트>"
+        BastionIP: !GetAtt BastionEC2.PublicIp
