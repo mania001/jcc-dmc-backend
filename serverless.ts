@@ -1,4 +1,6 @@
 import type { AWS } from '@serverless/typescript'
+import * as dotenv from 'dotenv'
+dotenv.config()
 
 import create from '@functions/create'
 import confirm from '@functions/confirm'
@@ -13,8 +15,8 @@ import list from '@functions/list'
 import webhook from '@functions/webhook'
 
 const vpcConfig = {
-  securityGroupIds: ['${env:VPC_SECURITY_GROUP_ID, ""}'] as unknown as string[],
-  subnetIds: ['${env:VPC_SUBNET_ID_1, ""}', '${env:VPC_SUBNET_ID_2, ""}'] as unknown as string[],
+  securityGroupIds: [process.env.VPC_SECURITY_GROUP_ID!],
+  subnetIds: [process.env.VPC_SUBNET_ID_1!, process.env.VPC_SUBNET_ID_2!],
 }
 
 const serverlessConfiguration: AWS = {
@@ -36,7 +38,7 @@ const serverlessConfiguration: AWS = {
     name: 'aws',
     runtime: 'nodejs20.x',
     region: 'ap-northeast-2',
-    profile: '${env:AWS_DEPLOY_PROFILE, ""}' as unknown as undefined,
+    profile: process.env.AWS_DEPLOY_PROFILE as unknown as undefined,
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,
