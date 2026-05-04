@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS offerings (
   mission     DECIMAL(18,0) DEFAULT 0,
   relief      DECIMAL(18,0) DEFAULT 0,
   amount      DECIMAL(18,0) NOT NULL,
-  pay_type    ENUM('card','mobile') NOT NULL,
+  pay_type    VARCHAR(20) NULL,
   order_id    VARCHAR(64)  NOT NULL UNIQUE,
   status      ENUM('PENDING','PROCESSING','COMPLETED','FAILED') NOT NULL DEFAULT 'PENDING',
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

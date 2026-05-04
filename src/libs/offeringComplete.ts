@@ -22,11 +22,11 @@ export async function completeOffering(payload: CompletePayload): Promise<void> 
       [orderId, paymentKey, method ?? null, JSON.stringify(rawResponse)]
     )
 
-    // 최초 INSERT일 때만 offerings 상태 변경 (중복 호출 방어)
+    // 최초 INSERT일 때만 offerings 상태/결제수단 변경 (중복 호출 방어)
     if (result.affectedRows > 0) {
       await conn.execute(
-        `UPDATE offerings SET status = 'COMPLETED' WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,
-        [orderId]
+        `UPDATE offerings SET status = 'COMPLETED', pay_type = ? WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,
+        [method ?? null, orderId]
       )
     }
 

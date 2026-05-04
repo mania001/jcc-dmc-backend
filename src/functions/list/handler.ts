@@ -2,6 +2,7 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-l
 import { formatJSONResponse } from '@libs/apiGateway'
 import { middyfy } from '@libs/lambda'
 import { getPool } from '@libs/db'
+import { decrypt } from '@libs/crypto'
 import type { RowDataPacket } from 'mysql2'
 
 const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event, context) => {
@@ -56,7 +57,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const pageNum = Number(page)
     const sizeNum = Number(size)
 
-    let dataQuery = `SELECT id, name, jumin1, email, tithe, thanks, building, mission, relief, amount, pay_type, order_id, status, created_at
+    let dataQuery = `SELECT id, name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, amount, pay_type, order_id, status, created_at
                      FROM offerings ${whereClause}
                      ORDER BY id DESC`
 
@@ -71,6 +72,11 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
 
     const currentPagePay = results.reduce((acc, cur) => acc + Number(cur.amount ?? 0), 0)
 
+    const rows = results.map((row) => ({
+      ...row,
+      jumin2: row.jumin2 ? decrypt(row.jumin2) : null,
+    }))
+
     return formatJSONResponse({
       message: {
         pageInfo: {
@@ -80,7 +86,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
           totalResults: cnt,
         },
         paymentInfo: { totalPay, currentPagePay },
-        results,
+        results: rows,
       },
     })
   } catch (err) {

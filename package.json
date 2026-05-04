@@ -12,7 +12,8 @@
     "lint:fix": "eslint src serverless.ts --fix",
     "format": "prettier --write \"src/**/*.ts\" serverless.ts",
     "bastion:deploy": "aws cloudformation deploy --stack-name jcc-bastion --template-file infra/bastion.yaml --profile serverless-deployer --region ap-northeast-2",
-    "bastion:delete": "aws cloudformation delete-stack --stack-name jcc-bastion --profile serverless-deployer --region ap-northeast-2"
+    "bastion:delete": "aws cloudformation delete-stack --stack-name jcc-bastion --profile serverless-deployer --region ap-northeast-2",
+    "migrate": "cd migration && npx ts-node src/migrate.ts"
   },
   "engines": {
     "node": ">=20.0.0"

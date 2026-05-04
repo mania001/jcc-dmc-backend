@@ -19,7 +19,7 @@ const create: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, 
       `INSERT INTO offerings (pay_type, name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, amount, order_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        pay_type,
+        pay_type ?? null,
         name,
         jumin1,
         encrypt(jumin2),

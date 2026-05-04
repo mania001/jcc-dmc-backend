@@ -92,20 +92,28 @@ async function fetchFromMssql(
   mssqlPool: mssql.ConnectionPool,
   tableName: string,
   payType: 'card' | 'mobile',
-  orderIdPrefix: string
+  orderIdPrefix: string,
+  sinceDate: Date | null
 ): Promise<TaggedRow[]> {
-  console.log(`[${tableName}] 조회 중...`)
-  const result = await mssqlPool.request().query<MssqlRow>(`
+  const sinceClause = sinceDate ? `WHERE reg_date >= @sinceDate` : ''
+  const label = sinceDate ? `${sinceDate.toISOString().slice(0, 10)} 이후` : '전체'
+  console.log(`[${tableName}] ${label} 조회 중...`)
+
+  const request = mssqlPool.request()
+  if (sinceDate) request.input('sinceDate', mssql.DateTime, sinceDate)
+
+  const result = await request.query<MssqlRow>(`
     SELECT num, name, jumin1, jumin2, email,
            price1, price2, price3, price4, price5,
            reg_date, seqcardnum, result
     FROM dbo.${tableName}
+    ${sinceClause}
     ORDER BY num
   `)
   const rows = result.recordset
   const completed = rows.filter((r) => r.result === 'T').length
   const failed = rows.length - completed
-  console.log(`[${tableName}] 전체 ${rows.length}건 (완료: ${completed}, 실패: ${failed})`)
+  console.log(`[${tableName}] ${rows.length}건 (완료: ${completed}, 실패: ${failed})`)
   return rows.map((r) => ({ ...r, payType, orderIdPrefix }))
 }
 
@@ -172,16 +180,20 @@ async function fetchTossPayment(orderId: string, auth: string, retries = 3): Pro
   throw new Error(`[payments] ${orderId} 최대 재시도 초과`)
 }
 
-// ── 2026년 COMPLETED UUID → payments 삽입 ─────────────────────────────────
-async function insertPaymentsFromToss(pool: mysql.Pool): Promise<void> {
+// ── COMPLETED UUID → payments 삽입 ────────────────────────────────────────
+async function insertPaymentsFromToss(pool: mysql.Pool, sinceDate: Date | null): Promise<void> {
   if (!process.env.TOSS_SECRET_KEY) throw new Error('TOSS_SECRET_KEY is not defined')
   const auth = `Basic ${Buffer.from(`${process.env.TOSS_SECRET_KEY}:`).toString('base64')}`
 
+  const sinceClause = sinceDate ? `AND created_at >= ?` : ''
+  const params = sinceDate ? [sinceDate] : []
+
   const [rows] = await pool.query<mysql.RowDataPacket[]>(
     `SELECT order_id FROM offerings
-     WHERE YEAR(created_at) = 2026
-       AND status = 'COMPLETED'
-       AND order_id REGEXP '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'`
+     WHERE status = 'COMPLETED'
+       AND order_id REGEXP '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       ${sinceClause}`,
+    params
   )
 
   console.log(`\n[payments] 2026 COMPLETED UUID ${rows.length}건 Toss API 조회 시작`)
@@ -220,7 +232,13 @@ async function insertPaymentsFromToss(pool: mysql.Pool): Promise<void> {
 
 // ── 메인 ──────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
+  const sinceArg = process.argv.find((a) => a.startsWith('--since='))?.split('=')[1] ?? null
+  const sinceDate = sinceArg ? new Date(sinceArg) : null
+  if (sinceArg && isNaN(sinceDate!.getTime()))
+    throw new Error(`--since 날짜 형식 오류: ${sinceArg} (예: --since=2026-01-01)`)
+
   console.log('=== JCC DMC 데이터 마이그레이션 시작 ===')
+  if (sinceDate) console.log(`기준일 이후만: ${sinceDate.toISOString().slice(0, 10)}`)
   console.log(`MSSQL: ${process.env.MSSQL_HOST}/${process.env.MSSQL_DB}`)
   console.log(`MySQL: ${process.env.DB_HOST}/${process.env.DB_NAME}\n`)
 
@@ -231,9 +249,8 @@ async function main(): Promise<void> {
   console.log('MySQL 연결 성공\n')
 
   try {
-    // 양쪽 테이블 전체 메모리 로드
-    const cardRows = await fetchFromMssql(mssqlPool, 'intCard', 'card', 'card')
-    const mobileRows = await fetchFromMssql(mssqlPool, 'MobilePay', 'mobile', 'mobile')
+    const cardRows = await fetchFromMssql(mssqlPool, 'intCard', 'card', 'card', sinceDate)
+    const mobileRows = await fetchFromMssql(mssqlPool, 'MobilePay', 'mobile', 'mobile', sinceDate)
 
     // created_at(reg_date) 오름차순 정렬 → id 순서가 날짜 순서와 일치
     const allRows = [...cardRows, ...mobileRows].sort((a, b) => a.reg_date.getTime() - b.reg_date.getTime())
@@ -248,8 +265,7 @@ async function main(): Promise<void> {
     }
     console.log('\n[offerings] 마이그레이션 완료')
 
-    // 2026년 COMPLETED UUID → Toss API로 payments 삽입
-    await insertPaymentsFromToss(mysqlPool)
+    await insertPaymentsFromToss(mysqlPool, sinceDate)
 
     // 최종 결과
     const [offeringRows] = await mysqlPool.query<mysql.RowDataPacket[]>(

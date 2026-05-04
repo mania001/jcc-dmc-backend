@@ -1,7 +1,7 @@
 export default {
   type: 'object',
   properties: {
-    pay_type: { type: 'string', enum: ['card', 'mobile'] },
+    pay_type: { type: 'string' },
     name: { type: 'string' },
     jumin1: { type: 'string' },
     jumin2: { type: 'string' },
@@ -13,5 +13,5 @@ export default {
     relief: { type: 'number' },
     order_id: { type: 'string' },
   },
-  required: ['pay_type', 'name', 'jumin1', 'jumin2', 'order_id'],
+  required: ['name', 'jumin1', 'jumin2', 'order_id'],
 } as const
