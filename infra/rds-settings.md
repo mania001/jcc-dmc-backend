@@ -117,10 +117,10 @@ DB_NAME=<DB명>
 ```bash
 # 1. bastion CF 스택 배포 (infra/bastion.yaml)
 # 2. SSH 터널
-ssh -i ~/.ssh/<키페어>.pem -L 13306:<RDS 엔드포인트>:3306 ec2-user@<BastionIP> -N
+ssh -i ~/.ssh/<키페어>.pem -L 3306:<RDS 엔드포인트>:3306 ec2-user@<BastionIP> -N
 
 # 3. 로컬에서 RDS에 dump 복원
-mysql -h 127.0.0.1 -P 13306 -u <마스터계정> -p <DB명> < sql/dump.sql
+mysql -h 127.0.0.1 -P 3306 -u <마스터계정> -p <DB명> < sql/dump.sql
 
 # 4. 완료 후 bastion 스택 삭제
 ```

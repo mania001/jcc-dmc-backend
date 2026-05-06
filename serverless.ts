@@ -1,6 +1,11 @@
 import type { AWS } from '@serverless/typescript'
 import * as dotenv from 'dotenv'
+import * as fs from 'fs'
+
 dotenv.config()
+if (process.argv.includes('offline') && fs.existsSync('.env.local')) {
+  dotenv.config({ path: '.env.local', override: true })
+}
 
 import create from '@functions/create'
 import confirm from '@functions/confirm'

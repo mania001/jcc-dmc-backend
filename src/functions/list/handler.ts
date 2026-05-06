@@ -15,6 +15,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
       name = '',
       ssn = '',
       email = '',
+      payType = '',
       isPage = 'true',
     } = (event.queryStringParameters ?? {}) as Record<string, string>
 
@@ -44,6 +45,11 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     if (email) {
       whereClause += ' AND email LIKE ?'
       whereParams.push(`%${email.trim()}%`)
+    }
+
+    if (payType) {
+      whereClause += ' AND pay_type = ?'
+      whereParams.push(payType.trim())
     }
 
     const pool = getPool()
