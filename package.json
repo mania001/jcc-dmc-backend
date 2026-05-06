@@ -11,7 +11,8 @@
     "lint": "eslint src serverless.ts",
     "lint:fix": "eslint src serverless.ts --fix",
     "format": "prettier --write \"src/**/*.ts\" serverless.ts",
-    "bastion:deploy": "aws cloudformation deploy --stack-name jcc-bastion --template-file infra/bastion.yaml --profile serverless-deployer --region ap-northeast-2",
+    "bastion:deploy": "aws cloudformation deploy --stack-name jcc-bastion --template-file infra/bastion.yaml --profile serverless-deployer --region ap-northeast-2 && npm run bastion:ip",
+    "bastion:ip": "aws cloudformation describe-stacks --stack-name jcc-bastion --profile serverless-deployer --region ap-northeast-2 --query 'Stacks[0].Outputs[?OutputKey==`BastionPublicIP`].OutputValue' --output text",
     "bastion:delete": "aws cloudformation delete-stack --stack-name jcc-bastion --profile serverless-deployer --region ap-northeast-2",
     "migrate": "cd migration && npx ts-node src/migrate.ts"
   },

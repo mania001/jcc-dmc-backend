@@ -117,6 +117,11 @@ async function fetchFromMssql(
   return rows.map((r) => ({ ...r, payType, orderIdPrefix }))
 }
 
+const PAY_TYPE_MAP: Record<string, string> = {
+  card: '카드',
+  mobile: '휴대폰',
+}
+
 // ── offerings 배치 INSERT ──────────────────────────────────────────────────
 async function insertOfferingsBatch(pool: mysql.Pool, rows: TaggedRow[]): Promise<void> {
   if (rows.length === 0) return
@@ -142,7 +147,7 @@ async function insertOfferingsBatch(pool: mysql.Pool, rows: TaggedRow[]): Promis
       mission,
       relief,
       amount,
-      r.payType,
+      PAY_TYPE_MAP[r.payType] ?? r.payType,
       buildOrderId(r.seqcardnum, r.orderIdPrefix),
       status,
       r.reg_date,
