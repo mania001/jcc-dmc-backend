@@ -66,6 +66,7 @@ interface MssqlRow {
   price3: number | null
   price4: number | null
   price5: number | null
+  contents: string | null
   reg_date: Date
   seqcardnum: string
   result: string
@@ -104,7 +105,7 @@ async function fetchFromMssql(
 
   const result = await request.query<MssqlRow>(`
     SELECT num, name, jumin1, jumin2, email,
-           price1, price2, price3, price4, price5,
+           price1, price2, price3, price4, price5, contents,
            reg_date, seqcardnum, result
     FROM dbo.${tableName}
     ${sinceClause}
@@ -126,7 +127,7 @@ const PAY_TYPE_MAP: Record<string, string> = {
 async function insertOfferingsBatch(pool: mysql.Pool, rows: TaggedRow[]): Promise<void> {
   if (rows.length === 0) return
 
-  const placeholders = rows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
+  const placeholders = rows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
   const values = rows.flatMap((r) => {
     const tithe = r.price1 ?? 0
     const thanks = r.price2 ?? 0
@@ -146,6 +147,7 @@ async function insertOfferingsBatch(pool: mysql.Pool, rows: TaggedRow[]): Promis
       building,
       mission,
       relief,
+      r.contents ?? null,
       amount,
       PAY_TYPE_MAP[r.payType] ?? r.payType,
       buildOrderId(r.seqcardnum, r.orderIdPrefix),
@@ -156,11 +158,25 @@ async function insertOfferingsBatch(pool: mysql.Pool, rows: TaggedRow[]): Promis
 
   await pool.query(
     `INSERT IGNORE INTO offerings
-       (name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, amount,
+       (name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, contents, amount,
         pay_type, order_id, status, created_at)
      VALUES ${placeholders}`,
     values
   )
+}
+
+// ── 기존 레코드 contents 업데이트 ─────────────────────────────────────────
+async function updateContentsOnly(pool: mysql.Pool, rows: TaggedRow[]): Promise<void> {
+  if (rows.length === 0) return
+
+  let updated = 0
+  for (const r of rows) {
+    const orderId = buildOrderId(r.seqcardnum, r.orderIdPrefix)
+    await pool.execute(`UPDATE offerings SET contents = ? WHERE order_id = ?`, [r.contents ?? null, orderId])
+    updated++
+    process.stdout.write(`\r[contents] ${updated}/${rows.length}건 완료`)
+  }
+  console.log(`\n[contents] 업데이트 완료`)
 }
 
 // ── Toss API 단건 조회 (404/429 핸들링) ────────────────────────────────────
@@ -242,7 +258,10 @@ async function main(): Promise<void> {
   if (sinceArg && isNaN(sinceDate!.getTime()))
     throw new Error(`--since 날짜 형식 오류: ${sinceArg} (예: --since=2026-01-01)`)
 
+  const contentsOnly = process.argv.includes('--contents-only')
+
   console.log('=== JCC DMC 데이터 마이그레이션 시작 ===')
+  if (contentsOnly) console.log('모드: 기존 레코드 contents 업데이트만')
   if (sinceDate) console.log(`기준일 이후만: ${sinceDate.toISOString().slice(0, 10)}`)
   console.log(`MSSQL: ${process.env.MSSQL_HOST}/${process.env.MSSQL_DB}`)
   console.log(`MySQL: ${process.env.DB_HOST}/${process.env.DB_NAME}\n`)
@@ -257,9 +276,15 @@ async function main(): Promise<void> {
     const cardRows = await fetchFromMssql(mssqlPool, 'intCard', 'card', 'card', sinceDate)
     const mobileRows = await fetchFromMssql(mssqlPool, 'MobilePay', 'mobile', 'mobile', sinceDate)
 
-    // created_at(reg_date) 오름차순 정렬 → id 순서가 날짜 순서와 일치
     const allRows = [...cardRows, ...mobileRows].sort((a, b) => a.reg_date.getTime() - b.reg_date.getTime())
 
+    if (contentsOnly) {
+      console.log(`\n[contents] 전체 ${allRows.length}건 contents 업데이트 시작`)
+      await updateContentsOnly(mysqlPool, allRows)
+      return
+    }
+
+    // created_at(reg_date) 오름차순 정렬 → id 순서가 날짜 순서와 일치
     console.log(`\n[offerings] 전체 ${allRows.length}건 created_at 순 삽입 시작`)
 
     let inserted = 0
