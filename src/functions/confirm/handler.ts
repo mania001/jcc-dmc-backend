@@ -8,6 +8,16 @@ import schema from './schema'
 const { TOSS_SECRET_KEY, SQS_QUEUE_URL } = process.env
 const sqs = new SQSClient({ region: 'ap-northeast-2' })
 
+const NON_RETRYABLE_CODES = new Set([
+  'PAYMENT_NOT_FOUND',
+  'NOT_FOUND_PAYMENT',
+  'NOT_FOUND_PAYMENT_SESSION',
+  'INVALID_PAYMENT_STATE',
+  'ALREADY_PROCESSED_PAYMENT',
+  'INVALID_ORDER_ID',
+  'NOT_ALLOWED_PAYMENT',
+])
+
 const confirm: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false
   try {
@@ -37,6 +47,14 @@ const confirm: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event,
     const tossBody = (await tossResponse.json()) as { message?: string; code?: string; method?: string }
 
     if (!tossResponse.ok) {
+      if (tossBody.code && NON_RETRYABLE_CODES.has(tossBody.code)) {
+        await sqs.send(
+          new SendMessageCommand({
+            QueueUrl: SQS_QUEUE_URL!,
+            MessageBody: JSON.stringify({ type: 'FAIL', orderId, status: tossBody.code }),
+          })
+        )
+      }
       return formatJSONResponse({
         statusCode: tossResponse.status,
         message: tossBody.message ?? 'TossPay confirm failed',

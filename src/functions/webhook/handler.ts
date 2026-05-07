@@ -101,6 +101,26 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
     }
 
     if (CANCEL_STATUSES.includes(status)) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 3000)
+
+      let payment: TossPayment
+      try {
+        const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${paymentKey}`, {
+          headers: { Authorization: expectedAuth },
+          signal: controller.signal,
+        })
+        if (!tossRes.ok) throw new Error(`Toss API error: ${tossRes.status}`)
+        payment = (await tossRes.json()) as TossPayment
+      } finally {
+        clearTimeout(timeout)
+      }
+
+      if (payment.status !== 'CANCELED' || payment.orderId !== orderId) {
+        console.warn('Cancel mismatch', { webhook: body.data, verified: payment })
+        return formatJSONResponse({ message: 'ok' })
+      }
+
       console.info('Payment canceled', { orderId, status, createdAt: body.createdAt })
       try {
         await sqs.send(
@@ -110,6 +130,7 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
               type: 'CANCEL',
               paymentKey,
               orderId,
+              status,
             }),
           })
         )

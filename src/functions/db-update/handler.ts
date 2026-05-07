@@ -18,11 +18,12 @@ export const main = async (event: SQSEvent, context: { callbackWaitsForEmptyEven
     if (payload.type === 'CANCEL') {
       const pool = getPool()
       await pool.execute(`UPDATE offerings SET status = 'CANCELED' WHERE order_id = ?`, [payload.orderId])
+      await pool.execute(`UPDATE payments SET status = 'CANCELED' WHERE order_id = ?`, [payload.orderId])
     } else if (payload.type === 'FAIL') {
       const pool = getPool()
       await pool.execute(
-        `UPDATE offerings SET status = 'FAILED' WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,
-        [payload.orderId]
+        `UPDATE offerings SET status = 'FAILED', fail_reason = ? WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,
+        [payload.status ?? 'FAILED', payload.orderId]
       )
     } else {
       await completeOffering({
