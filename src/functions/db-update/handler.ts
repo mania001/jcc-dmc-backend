@@ -7,7 +7,7 @@ export const main = async (event: SQSEvent, context: { callbackWaitsForEmptyEven
 
   for (const record of event.Records) {
     const payload = JSON.parse(record.body) as {
-      type: 'COMPLETE' | 'FAIL'
+      type: 'COMPLETE' | 'CANCEL' | 'FAIL'
       paymentKey?: string
       orderId: string
       status?: string
@@ -15,7 +15,10 @@ export const main = async (event: SQSEvent, context: { callbackWaitsForEmptyEven
       rawResponse?: unknown
     }
 
-    if (payload.type === 'FAIL') {
+    if (payload.type === 'CANCEL') {
+      const pool = getPool()
+      await pool.execute(`UPDATE offerings SET status = 'CANCELED' WHERE order_id = ?`, [payload.orderId])
+    } else if (payload.type === 'FAIL') {
       const pool = getPool()
       await pool.execute(
         `UPDATE offerings SET status = 'FAILED' WHERE order_id = ? AND status IN ('PENDING', 'PROCESSING')`,

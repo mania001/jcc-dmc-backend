@@ -17,14 +17,22 @@ const confirm: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (event,
     const { paymentKey, orderId, amount } = event.body
 
     const encoded = Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64')
-    const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${encoded}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 25000)
+    let tossResponse: Response
+    try {
+      tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${encoded}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paymentKey, orderId, amount }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeout)
+    }
 
     const tossBody = (await tossResponse.json()) as { message?: string; code?: string; method?: string }
 

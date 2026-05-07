@@ -5,7 +5,8 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 const { TOSS_SECRET_KEY, SQS_QUEUE_URL } = process.env
 const sqs = new SQSClient({ region: 'ap-northeast-2' })
 
-const FAILED_STATUSES = ['CANCELED', 'ABORTED', 'EXPIRED']
+const CANCEL_STATUSES = ['CANCELED']
+const FAILED_STATUSES = ['ABORTED', 'EXPIRED']
 
 interface TossWebhookBody {
   eventType: string
@@ -99,6 +100,24 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
       }
     }
 
+    if (CANCEL_STATUSES.includes(status)) {
+      console.info('Payment canceled', { orderId, status, createdAt: body.createdAt })
+      try {
+        await sqs.send(
+          new SendMessageCommand({
+            QueueUrl: SQS_QUEUE_URL,
+            MessageBody: JSON.stringify({
+              type: 'CANCEL',
+              paymentKey,
+              orderId,
+            }),
+          })
+        )
+      } catch (e) {
+        throw e
+      }
+    }
+
     if (FAILED_STATUSES.includes(status)) {
       console.info('Payment failed', { orderId, status, createdAt: body.createdAt })
       try {
@@ -114,7 +133,6 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
           })
         )
       } catch (e) {
-        // 의도적으로 throw → 500 반환 → Toss 재시도 유도
         throw e
       }
     }
