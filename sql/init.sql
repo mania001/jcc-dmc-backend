@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS offerings (
   building    DECIMAL(18,0) DEFAULT 0,
   mission     DECIMAL(18,0) DEFAULT 0,
   relief      DECIMAL(18,0) DEFAULT 0,
+  contents    TEXT          NULL,
   amount      DECIMAL(18,0) NOT NULL,
   pay_type    VARCHAR(20) NULL,
   order_id    VARCHAR(64)  NOT NULL UNIQUE,

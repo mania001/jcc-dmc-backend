@@ -63,7 +63,7 @@ const list: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event,
     const pageNum = Number(page)
     const sizeNum = Number(size)
 
-    let dataQuery = `SELECT id, name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, amount, pay_type, order_id, status, created_at
+    let dataQuery = `SELECT id, name, jumin1, jumin2, email, tithe, thanks, building, mission, relief, contents, amount, pay_type, order_id, status, created_at
                      FROM offerings ${whereClause}
                      ORDER BY id DESC`
 
