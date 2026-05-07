@@ -27,10 +27,6 @@ interface TossPayment {
   [key: string]: unknown
 }
 
-function verifyAuth(authHeader: string, expectedAuth: string): boolean {
-  return !!authHeader && authHeader === expectedAuth
-}
-
 export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false
 
@@ -38,12 +34,7 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
     if (!TOSS_SECRET_KEY) throw new Error('TOSS_SECRET_KEY is not defined')
     if (!SQS_QUEUE_URL) throw new Error('SQS_QUEUE_URL is not defined')
 
-    const expectedAuth = `Basic ${Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64')}`
-    const authHeader = event.headers?.Authorization ?? event.headers?.authorization ?? ''
-    if (!verifyAuth(authHeader, expectedAuth)) {
-      return formatJSONResponse({ statusCode: 401, message: 'Unauthorized' })
-    }
-
+    const tossBasicAuth = `Basic ${Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64')}`
     const body = JSON.parse(event.body ?? '{}') as TossWebhookBody
 
     if (body.eventType !== 'PAYMENT_STATUS_CHANGED') {
@@ -63,7 +54,7 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
       let payment: TossPayment
       try {
         const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${paymentKey}`, {
-          headers: { Authorization: expectedAuth },
+          headers: { Authorization: tossBasicAuth },
           signal: controller.signal,
         })
 
@@ -107,7 +98,7 @@ export const main: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async 
       let payment: TossPayment
       try {
         const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${paymentKey}`, {
-          headers: { Authorization: expectedAuth },
+          headers: { Authorization: tossBasicAuth },
           signal: controller.signal,
         })
         if (!tossRes.ok) throw new Error(`Toss API error: ${tossRes.status}`)
