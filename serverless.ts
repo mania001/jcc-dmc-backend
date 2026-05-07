@@ -6,6 +6,11 @@ dotenv.config()
 if (process.argv.includes('offline') && fs.existsSync('.env.local')) {
   dotenv.config({ path: '.env.local', override: true })
 }
+const stageIdx = process.argv.indexOf('--stage')
+const stage = stageIdx !== -1 ? process.argv[stageIdx + 1] : 'dev'
+if (stage === 'prod' && fs.existsSync('.env.prod')) {
+  dotenv.config({ path: '.env.prod', override: true })
+}
 
 import create from '@functions/create'
 import confirm from '@functions/confirm'
@@ -51,6 +56,7 @@ const serverlessConfiguration: AWS = {
     },
     environment: {
       NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
+      SQS_QUEUE_URL: { Ref: 'OfferingUpdateQueue' } as unknown as string,
     },
     iam: {
       role: {
@@ -85,7 +91,7 @@ const serverlessConfiguration: AWS = {
       OfferingUpdateQueue: {
         Type: 'AWS::SQS::Queue',
         Properties: {
-          QueueName: 'jcc-dmc-offering-update-queue',
+          QueueName: `jcc-dmc-offering-update-queue-${stage}`,
           VisibilityTimeout: 60,
           MessageRetentionPeriod: 86400,
         },
@@ -94,7 +100,7 @@ const serverlessConfiguration: AWS = {
     Outputs: {
       OfferingUpdateQueueUrl: {
         Value: { Ref: 'OfferingUpdateQueue' },
-        Export: { Name: 'jcc-dmc-offering-update-queue-url' },
+        Export: { Name: `jcc-dmc-offering-update-queue-url-${stage}` },
       },
     },
   },

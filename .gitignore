@@ -11,6 +11,7 @@ lib/
 # Environment
 .env
 .env.local
+.env.*
 .env.*.local
 
 # Logs
