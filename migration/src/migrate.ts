@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv'
 import { createCipheriv, randomBytes } from 'crypto'
 
 dotenv.config({ path: '../.env' }) // 공유 변수 (ENCRYPTION_KEY, TOSS_SECRET_KEY, DB_*)
-dotenv.config() // MSSQL 전용 (.env, 기존 값 유지)
+dotenv.config({ override: true }) // MSSQL 전용 + 로컬 override (TOSS_SECRET_KEY 등 재정의 가능)
 
 // ── 암호화 ─────────────────────────────────────────────────────────────────
 const ALGORITHM = 'aes-256-cbc'
