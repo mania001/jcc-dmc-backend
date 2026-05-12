@@ -198,16 +198,9 @@ Resources:
           CidrIp: 0.0.0.0/0
           Description: HTTPS
       SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          DestinationSecurityGroupId: !Ref SGRDS
-          Description: MySQL to RDS
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+        - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-          Description: HTTPS outbound
+          Description: All outbound
       Tags:
         - Key: Name
           Value: sg-ec2
