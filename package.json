@@ -19,7 +19,7 @@
     "migrate": "cd migration && npx ts-node src/migrate.ts"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1038.0",

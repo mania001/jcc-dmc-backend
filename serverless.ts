@@ -39,7 +39,7 @@ const serverlessConfiguration: AWS = {
       minify: false,
       sourcemap: true,
       exclude: ['@aws-sdk/*'],
-      target: 'node20',
+      target: 'node22',
       define: { 'require.resolve': undefined },
       platform: 'node',
     },
@@ -47,7 +47,7 @@ const serverlessConfiguration: AWS = {
   plugins: ['serverless-esbuild', 'serverless-dotenv-plugin', 'serverless-offline'],
   provider: {
     name: 'aws',
-    runtime: 'nodejs20.x',
+    runtime: 'nodejs22.x' as 'nodejs20.x',
     region: 'ap-northeast-2',
     profile: process.env.AWS_DEPLOY_PROFILE as unknown as undefined,
     apiGateway: {
