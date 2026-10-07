@@ -8,6 +8,7 @@ export default {
       http: {
         method: 'post',
         path: 'signup',
+        authorizer: 'auth',
         cors: true,
         request: {
           schemas: {

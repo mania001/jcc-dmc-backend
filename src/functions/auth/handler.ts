@@ -13,6 +13,10 @@ export const main = async (event: { authorizationToken: string; methodArn: strin
   const [type, data] = splitByDelimiter(token, ' ')
   const allow = type === 'Bearer' && !!jwt.verify(data, JWT_SECRET)
 
+  // authorizer 결과는 토큰 단위로 캐시되므로, 특정 메서드가 아닌 스테이지 전체를 허용해야 다른 경로에서 403이 나지 않음
+  const [apiArn, stageName] = event.methodArn.split('/')
+  const resource = `${apiArn}/${stageName}/*`
+
   return {
     principalId: 'user',
     policyDocument: {
@@ -21,7 +25,7 @@ export const main = async (event: { authorizationToken: string; methodArn: strin
         {
           Action: 'execute-api:Invoke',
           Effect: allow ? 'Allow' : 'Deny',
-          Resource: event.methodArn,
+          Resource: resource,
         },
       ],
     },
