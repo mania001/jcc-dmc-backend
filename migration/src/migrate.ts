@@ -50,6 +50,7 @@ const mysqlConfig: mysql.PoolOptions = {
   user: process.env.DB_USER,
   password: process.env.DB_PWD,
   database: process.env.DB_NAME,
+  timezone: 'Z', // mssql이 reg_date를 UTC로 읽으므로 UTC로 써야 원본 시각(KST) 그대로 저장됨 (실행 머신 TZ 무관)
 }
 
 const BATCH_SIZE = 500
