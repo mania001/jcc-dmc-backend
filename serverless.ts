@@ -30,6 +30,13 @@ const vpcConfig = {
   subnetIds: [process.env.VPC_SUBNET_ID_1!, process.env.VPC_SUBNET_ID_2!],
 }
 
+// 정상 응답(cors: true, responseCorsHeader)과 동일한 값. 리터럴이라 작은따옴표로 한 번 더 감싸야 함
+const gatewayResponseCorsHeaders = {
+  'gatewayresponse.header.Access-Control-Allow-Origin': "'*'",
+  'gatewayresponse.header.Access-Control-Allow-Headers':
+    "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+}
+
 const serverlessConfiguration: AWS = {
   service: 'jcc-dmc-backend',
   frameworkVersion: '3',
@@ -88,6 +95,23 @@ const serverlessConfiguration: AWS = {
   },
   resources: {
     Resources: {
+      // API Gateway가 직접 만드는 에러 응답(authorizer 401/403, 500 등)에도 CORS 헤더를 붙임
+      GatewayResponseDefault4XX: {
+        Type: 'AWS::ApiGateway::GatewayResponse',
+        Properties: {
+          ResponseType: 'DEFAULT_4XX',
+          RestApiId: { Ref: 'ApiGatewayRestApi' },
+          ResponseParameters: gatewayResponseCorsHeaders,
+        },
+      },
+      GatewayResponseDefault5XX: {
+        Type: 'AWS::ApiGateway::GatewayResponse',
+        Properties: {
+          ResponseType: 'DEFAULT_5XX',
+          RestApiId: { Ref: 'ApiGatewayRestApi' },
+          ResponseParameters: gatewayResponseCorsHeaders,
+        },
+      },
       OfferingUpdateQueue: {
         Type: 'AWS::SQS::Queue',
         Properties: {

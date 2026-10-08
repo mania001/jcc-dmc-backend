@@ -11,7 +11,15 @@ export const main = async (event: { authorizationToken: string; methodArn: strin
   if (!JWT_SECRET) throw new Error('JWT_SECRET is not defined')
   const token = event.authorizationToken
   const [type, data] = splitByDelimiter(token, ' ')
-  const allow = type === 'Bearer' && !!jwt.verify(data, JWT_SECRET)
+  // 'Unauthorized' 문자열로 던져야 API Gateway가 401로 응답함 (그 외 예외는 500)
+  if (type !== 'Bearer' || !data) throw new Error('Unauthorized')
+  try {
+    jwt.verify(data, JWT_SECRET)
+  } catch (err) {
+    // 만료(TokenExpiredError), 서명 불일치, 형식 오류 모두 JsonWebTokenError 계열
+    if (err instanceof jwt.JsonWebTokenError) throw new Error('Unauthorized')
+    throw err
+  }
 
   // authorizer 결과는 토큰 단위로 캐시되므로, 특정 메서드가 아닌 스테이지 전체를 허용해야 다른 경로에서 403이 나지 않음
   const [apiArn, stageName] = event.methodArn.split('/')
@@ -24,7 +32,7 @@ export const main = async (event: { authorizationToken: string; methodArn: strin
       Statement: [
         {
           Action: 'execute-api:Invoke',
-          Effect: allow ? 'Allow' : 'Deny',
+          Effect: 'Allow',
           Resource: resource,
         },
       ],
